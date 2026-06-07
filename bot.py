@@ -23,22 +23,19 @@ def generate_game_text(players_list, target):
     
     return text
 
+# 1️⃣ الخطوة الأولى: عند إرسال /start يظهر زر إنشاء روليت فقط
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
     keyboard = [
-        [InlineKeyboardButton("5", callback_data="set_5"), InlineKeyboardButton("10", callback_data="set_10"), InlineKeyboardButton("15", callback_data="set_15")],
-        [InlineKeyboardButton("20", callback_data="set_20"), InlineKeyboardButton("25", callback_data="set_25"), InlineKeyboardButton("30", callback_data="set_30")],
-        [InlineKeyboardButton("35", callback_data="set_35"), InlineKeyboardButton("40", callback_data="set_40"), InlineKeyboardButton("45", callback_data="set_45")],
-        [InlineKeyboardButton("50", callback_data="set_50")],
+        [InlineKeyboardButton("إنشاء روليت 🎯", callback_data="create_roulette")],
         [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray_on_prophet")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
     await update.message.reply_text(
         f"أهلًا بك يا 🕯️ {user.first_name} 🕯️ في لعبة الروليت العادي! 👋\n\n"
-        f"اختر عدد المشاركين من الأزرار أدناه لتجهيز جولة جديدة:\n\n"
-        f"💎 تذكير نوراني: لا تنسَ الصلاة على النبي قبل البدء باللعب 👇", 
+        f"💎 تذكير نوراني: لا تنسَ الصلاة على النبي قبل البدء 👇", 
         reply_markup=reply_markup
     )
 
@@ -52,26 +49,55 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("اللهم صلِّ وسلم وبارك على سيدنا ونبينا محمد وعلى آله وصحبه أجمعين\n\nجزاك الله خيراً وكسبت الأجر 🩵")
         return
 
-    # عندما يختار المسؤول الرقم، يظهر له زر إطلاق الروليت مباشرة بدل زر الدخول
+    # 2️⃣ الخطوة الثانية: عند ضغط "إنشاء روليت" تظهر قائمة اختيار المشتركين
+    if data == "create_roulette":
+        await query.answer()
+        keyboard = [
+            [InlineKeyboardButton("5", callback_data="set_5"), InlineKeyboardButton("10", callback_data="set_10"), InlineKeyboardButton("15", callback_data="set_15")],
+            [InlineKeyboardButton("20", callback_data="set_20"), InlineKeyboardButton("25", callback_data="set_25"), InlineKeyboardButton("30", callback_data="set_30")],
+            [InlineKeyboardButton("35", callback_data="set_35"), InlineKeyboardButton("40", callback_data="set_40"), InlineKeyboardButton("45", callback_data="set_45")],
+            [InlineKeyboardButton("50", callback_data="set_50")],
+            [InlineKeyboardButton("رجوع ↩️", callback_data="back_to_start")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(
+            text="⚙️ اختر عدد المشاركين المطلوب للروليت من الأزرار أدناه:",
+            reply_markup=reply_markup
+        )
+        return
+
+    # زر الرجوع للقائمة الرئيسية
+    if data == "back_to_start":
+        await query.answer()
+        keyboard = [
+            [InlineKeyboardButton("إنشاء روليت 🎯", callback_data="create_roulette")],
+            [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray_on_prophet")]
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await query.edit_message_text(
+            text=f"أهلًا بك يا 🕯️ {user.first_name} 🕯️ في لعبة الروليت العادي! 👋\n\n💎 تذكير نوراني: لا تنسَ الصلاة على النبي قبل البدء 👇",
+            reply_markup=reply_markup
+        )
+        return
+
+    # 3️⃣ الخطوة الثالثة: عند اختيار العدد يظهر زر النشر المباشر
     if data.startswith("set_"):
         await query.answer()
         target = int(data.split("_")[1])
         
         keyboard = [
-            [InlineKeyboardButton(f"إطلاق الروليت وتحديد الفائز ({target} مشارك) 🎯", switch_inline_query=f"run_{target}")],
-            [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray_on_prophet")]
+            [InlineKeyboardButton(f"اضغط هنا لنشر الروليت المحدد ({target} مشارك) 📣", switch_inline_query=f"run_{target}")],
+            [InlineKeyboardButton("تعديل العدد ⚙️", callback_data="create_roulette")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        await query.message.reply_text(
-            f"تم تجهيز الروليت العادي بنجاح 💎\n"
-            f"👥 عدد المشتركين المستهدف: {target}\n\n"
-            f"اضغط على زر (إطلاق الروليت) بالأسفل لنشرها في قنواتك ومجموعاتك 👇",
+        await query.edit_message_text(
+            text=f"تم تجهيز الروليت بنجاح 💎\n👥 عدد المشتركين: {target}\n\nاضغطي على الزر بالأسفل لنشره مباشرة في قناتك أو مجموعتك 👇",
             reply_markup=reply_markup
         )
         return
 
-    # هذا الجزء مخصص للمشتركين داخل الجروبات عندما يضغطون على انضمام
+    # تفاعل المشتركين عند الضغط على زر الانضمام بالجروب أو القناة
     if data.startswith("join_"):
         _, target_str, session_id = data.split("_")
         target = int(target_str)
@@ -150,7 +176,7 @@ async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button_handler, pattern="^(join_.*|pray_on_prophet|set_.*)$"))
+app.add_handler(CallbackQueryHandler(button_handler, pattern="^(join_.*|pray_on_prophet|set_.*|create_roulette|back_to_start)$"))
 app.add_handler(InlineQueryHandler(inline_query_handler))
 
 app.run_polling()
