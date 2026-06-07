@@ -23,13 +23,13 @@ def generate_game_text(players_list, target):
     
     return text
 
-# 1️⃣ الخطوة الأولى: زر "🏆 إنشاء روليت" مستقل وعريض
+# 1️⃣ الخطوة الأولى: زر إنشاء روليت
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
     keyboard = [
-        [InlineKeyboardButton("🏆 إنشاء روليت", callback_data="create_roulette")],
-        [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray_on_prophet")]
+        [InlineKeyboardButton("🏆 إنشاء روليت", callback_data="create")],
+        [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -44,20 +44,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = query.from_user
     data = query.data
 
-    if data == "pray_on_prophet":
+    if data == "pray":
         await query.answer()
         await query.message.reply_text("اللهم صلِّ وسلم وبارك على سيدنا ونبينا محمد وعلى آله وصحبه أجمعين\n\nجزاك الله خيراً وكسبت الأجر 🩵")
         return
 
-    # 2️⃣ الخطوة الثانية: قائمة اختيار الأرقام بعد الضغط على إنشاء
-    if data == "create_roulette":
+    # 2️⃣ الخطوة الثانية: قائمة اختيار الأرقام
+    if data == "create":
         await query.answer()
         keyboard = [
-            [InlineKeyboardButton("5", callback_data="set_5"), InlineKeyboardButton("10", callback_data="set_10"), InlineKeyboardButton("15", callback_data="set_15")],
-            [InlineKeyboardButton("20", callback_data="set_20"), InlineKeyboardButton("25", callback_data="set_25"), InlineKeyboardButton("30", callback_data="set_30")],
-            [InlineKeyboardButton("35", callback_data="set_35"), InlineKeyboardButton("40", callback_data="set_40"), InlineKeyboardButton("45", callback_data="set_45")],
-            [InlineKeyboardButton("50", callback_data="set_50")],
-            [InlineKeyboardButton("رجوع ↩️", callback_data="back_to_start")]
+            [InlineKeyboardButton("5", callback_data="s_5"), InlineKeyboardButton("10", callback_data="s_10"), InlineKeyboardButton("15", callback_data="s_15")],
+            [InlineKeyboardButton("20", callback_data="s_20"), InlineKeyboardButton("25", callback_data="s_25"), InlineKeyboardButton("30", callback_data="s_30")],
+            [InlineKeyboardButton("35", callback_data="s_35"), InlineKeyboardButton("40", callback_data="s_40"), InlineKeyboardButton("45", callback_data="s_45")],
+            [InlineKeyboardButton("50", callback_data="s_50")],
+            [InlineKeyboardButton("رجوع ↩️", callback_data="back")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
@@ -66,12 +66,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # زر الرجوع للقائمة الرئيسية
-    if data == "back_to_start":
+    if data == "back":
         await query.answer()
         keyboard = [
-            [InlineKeyboardButton("🏆 إنشاء روليت", callback_data="create_roulette")],
-            [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray_on_prophet")]
+            [InlineKeyboardButton("🏆 إنشاء روليت", callback_data="create")],
+            [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
@@ -80,36 +79,32 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 3️⃣ الخطوة الثالثة: عند اختيار الرقم يظهر زر النشر المعتمد على الرقم الفريد الطويل
-    if data.startswith("set_"):
+    # 3️⃣ الخطوة الثالثة: عند اختيار الرقم يظهر زر النشر المباشر (تم تقصير البيانات لتعمل فوراً)
+    if data.startswith("s_"):
         await query.answer()
         target = int(data.split("_")[1])
         
-        # توليد معرف فريد وطويل جداً لكل جولة مثل الصورة تماماً لمنع التداخل
-        session_id = str(random.randint(1000000000000000, 9999999999999999))
-        game_sessions[session_id] = {"target": target, "players": []}
-        
         keyboard = [
-            [InlineKeyboardButton(f"اضغط هنا لنشر الروليت المحدد ({target} مشارك) 📣", switch_inline_query=f"run_{target}_{session_id}")],
-            [InlineKeyboardButton("تعديل العدد ⚙️", callback_data="create_roulette")]
+            [InlineKeyboardButton(f"اضغط هنا لنشر الروليت المحدد ({target} مشارك) 📣", switch_inline_query=f"run_{target}")],
+            [InlineKeyboardButton("تعديل العدد ⚙️", callback_data="create")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(
-            text=f"تم تجهيز الروليت بنجاح 💎\n👥 عدد المشتركين: {target}\n\nاضغطي على الزر بالأسفل لنشره مباشرة عبر قائمة الـ Inline 👇",
+            text=f"تم تجهيز الروليت بنجاح 💎\n👥 عدد المشتركين: {target}\n\nاضغطي على الزر بالأسفل لنشره مباشرة في قناتك أو مجموعتك 👇",
             reply_markup=reply_markup
         )
         return
 
-    # تفاعل المشتركين عند الانضمام في القنوات أو المجموعات
-    if data.startswith("join_"):
+    # تفاعل المشتركين عند الانضمام
+    if data.startswith("j_"):
         _, target_str, session_id = data.split("_")
         target = int(target_str)
         
         if session_id not in game_sessions:
-            game_sessions[session_id] = {"target": target, "players": []}
+            game_sessions[session_id] = []
             
-        players_list = game_sessions[session_id]["players"]
+        players_list = game_sessions[session_id]
 
         if len(players_list) >= target:
             await query.answer("عذراً، اكتمل عدد المشتركين لهذه الجولة! ⚠️", show_alert=True)
@@ -137,37 +132,28 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.answer("تم تسجيلك بنجاح! ✅")
                 new_text = generate_game_text(players_list, target)
                 keyboard = [
-                    [InlineKeyboardButton(f"مشاركة ({current_len}) 📥", callback_data=f"join_{target}_{session_id}")],
-                    [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray_on_prophet")]
+                    [InlineKeyboardButton(f"مشاركة ({current_len}) 📥", callback_data=f"j_{target}_{session_id}")],
+                    [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray")]
                 ]
                 reply_markup = InlineKeyboardMarkup(keyboard)
                 await query.edit_message_text(text=new_text, reply_markup=reply_markup)
         else:
             await query.answer("أنت مسجل بالفعل في هذه الجولة! ⚠️", show_alert=True)
 
-# معالج الـ Inline للتحكم بالنشر بشكل مطابق تماماً للصورة المعروضة
+# نظام النشر الداخلي للـ Inline
 async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
     
-    target = 5
-    session_id = str(random.randint(1000000000000000, 9999999999999999))
-    
     if query.startswith("run_"):
-        parts = query.split("_")
-        if len(parts) >= 3:
-            try:
-                target = int(parts[1])
-                session_id = parts[2]
-            except:
-                pass
-        elif len(parts) == 2:
-            try:
-                target = int(parts[1])
-            except:
-                pass
+        try:
+            target = int(query.split("_")[1])
+        except:
+            target = 5
+    else:
+        target = 5
 
-    if session_id not in game_sessions:
-        game_sessions[session_id] = {"target": target, "players": []}
+    session_id = str(random.randint(100000, 999999))
+    game_sessions[session_id] = []
 
     results = [
         InlineQueryResultArticle(
@@ -179,8 +165,8 @@ async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"🏆 لم يتم اختيار الفائز بعد"
             ),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("مشاركة (0) 📥", callback_data=f"join_{target}_{session_id}")],
-                [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray_on_prophet")]
+                [InlineKeyboardButton("مشاركة (0) 📥", callback_data=f"j_{target}_{session_id}")],
+                [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray")]
             ])
         )
     ]
@@ -190,7 +176,7 @@ async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(button_handler, pattern="^(join_.*|pray_on_prophet|set_.*|create_roulette|back_to_start)$"))
+app.add_handler(CallbackQueryHandler(button_handler, pattern="^(j_.*|pray|s_.*|create|back)$"))
 app.add_handler(InlineQueryHandler(inline_query_handler))
 
 app.run_polling()
