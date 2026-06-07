@@ -23,12 +23,12 @@ def generate_game_text(players_list, target):
     
     return text
 
-# 1️⃣ الخطوة الأولى: عند إرسال /start يظهر زر إنشاء روليت فقط
+# 1️⃣ الخطوة الأولى: زر "🏆 إنشاء روليت" مستقل وعريض
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
     keyboard = [
-        [InlineKeyboardButton("إنشاء روليت 🎯", callback_data="create_roulette")],
+        [InlineKeyboardButton("🏆 إنشاء روليت", callback_data="create_roulette")],
         [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray_on_prophet")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -49,7 +49,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("اللهم صلِّ وسلم وبارك على سيدنا ونبينا محمد وعلى آله وصحبه أجمعين\n\nجزاك الله خيراً وكسبت الأجر 🩵")
         return
 
-    # 2️⃣ الخطوة الثانية: عند ضغط "إنشاء روليت" تظهر قائمة اختيار المشتركين
+    # 2️⃣ الخطوة الثانية: قائمة اختيار الأرقام بعد الضغط على إنشاء
     if data == "create_roulette":
         await query.answer()
         keyboard = [
@@ -70,7 +70,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "back_to_start":
         await query.answer()
         keyboard = [
-            [InlineKeyboardButton("إنشاء روليت 🎯", callback_data="create_roulette")],
+            [InlineKeyboardButton("🏆 إنشاء روليت", callback_data="create_roulette")],
             [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray_on_prophet")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -80,32 +80,36 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 3️⃣ الخطوة الثالثة: عند اختيار العدد يظهر زر النشر المباشر
+    # 3️⃣ الخطوة الثالثة: عند اختيار الرقم يظهر زر النشر المعتمد على الرقم الفريد الطويل
     if data.startswith("set_"):
         await query.answer()
         target = int(data.split("_")[1])
         
+        # توليد معرف فريد وطويل جداً لكل جولة مثل الصورة تماماً لمنع التداخل
+        session_id = str(random.randint(1000000000000000, 9999999999999999))
+        game_sessions[session_id] = {"target": target, "players": []}
+        
         keyboard = [
-            [InlineKeyboardButton(f"اضغط هنا لنشر الروليت المحدد ({target} مشارك) 📣", switch_inline_query=f"run_{target}")],
+            [InlineKeyboardButton(f"اضغط هنا لنشر الروليت المحدد ({target} مشارك) 📣", switch_inline_query=f"run_{target}_{session_id}")],
             [InlineKeyboardButton("تعديل العدد ⚙️", callback_data="create_roulette")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
         await query.edit_message_text(
-            text=f"تم تجهيز الروليت بنجاح 💎\n👥 عدد المشتركين: {target}\n\nاضغطي على الزر بالأسفل لنشره مباشرة في قناتك أو مجموعتك 👇",
+            text=f"تم تجهيز الروليت بنجاح 💎\n👥 عدد المشتركين: {target}\n\nاضغطي على الزر بالأسفل لنشره مباشرة عبر قائمة الـ Inline 👇",
             reply_markup=reply_markup
         )
         return
 
-    # تفاعل المشتركين عند الضغط على زر الانضمام بالجروب أو القناة
+    # تفاعل المشتركين عند الانضمام في القنوات أو المجموعات
     if data.startswith("join_"):
         _, target_str, session_id = data.split("_")
         target = int(target_str)
         
         if session_id not in game_sessions:
-            game_sessions[session_id] = []
+            game_sessions[session_id] = {"target": target, "players": []}
             
-        players_list = game_sessions[session_id]
+        players_list = game_sessions[session_id]["players"]
 
         if len(players_list) >= target:
             await query.answer("عذراً، اكتمل عدد المشتركين لهذه الجولة! ⚠️", show_alert=True)
@@ -141,24 +145,34 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await query.answer("أنت مسجل بالفعل في هذه الجولة! ⚠️", show_alert=True)
 
+# معالج الـ Inline للتحكم بالنشر بشكل مطابق تماماً للصورة المعروضة
 async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
     
+    target = 5
+    session_id = str(random.randint(1000000000000000, 9999999999999999))
+    
     if query.startswith("run_"):
-        try:
-            target = int(query.split("_")[1])
-        except:
-            target = 5
-    else:
-        target = 5
+        parts = query.split("_")
+        if len(parts) >= 3:
+            try:
+                target = int(parts[1])
+                session_id = parts[2]
+            except:
+                pass
+        elif len(parts) == 2:
+            try:
+                target = int(parts[1])
+            except:
+                pass
 
-    session_id = str(random.randint(100000, 999999))
-    game_sessions[session_id] = []
+    if session_id not in game_sessions:
+        game_sessions[session_id] = {"target": target, "players": []}
 
     results = [
         InlineQueryResultArticle(
             id=session_id,
-            title=f"نشر روليت عادي - {target} مشاركين",
+            title=f"اضغط هنا لنشر الروليت المحدد ({target} مشارك)",
             input_message_content=InputTextMessageContent(
                 f"🎯 روليت عادي 🎯\n\n"
                 f"👥 المشاركين: 0 من أصل {target} مشارك\n"
@@ -181,4 +195,3 @@ app.add_handler(InlineQueryHandler(inline_query_handler))
 
 app.run_polling()
 
-            
