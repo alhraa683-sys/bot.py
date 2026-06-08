@@ -13,7 +13,6 @@ def home():
     return "Bot is running perfectly!"
 
 def run_server():
-    # Render يمرر المنفذ تلقائياً عبر متغير البيئة PORT
     port = int(os.environ.get("PORT", 8080))
     app_flask.run(host= 0.0.0.0 , port=port)
 
