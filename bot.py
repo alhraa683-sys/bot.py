@@ -18,15 +18,15 @@ def generate_game_text(players_list, target):
         text += "🏆 لم يتم اختيار الفائز بعد\n\n"
         text += "📜 قائمة المشتركين الحالية:\n"
         for i, p in enumerate(players_list, 1):
-            text += f"{i}-Player: {p['name']}\n"
+            text += f"{i}-Player: {p[ name ]}\n"
     
     return text
 
-# 1️⃣ القائمة الرئيسية لبدء المسابقة
+# 1️⃣ القائمة الرئيسية لبدء الروليت (تم تعديل المسمى هنا)
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     keyboard = [
-        [InlineKeyboardButton("🏆 إنشاء مسابقة", callback_data="create")],
+        [InlineKeyboardButton("🏆 إنشاء روليت", callback_data="create")],
         [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -66,7 +66,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data == "back":
         await query.answer()
         keyboard = [
-            [InlineKeyboardButton("🏆 إنشاء مسابقة", callback_data="create")],
+            [InlineKeyboardButton("🏆 إنشاء روليت", callback_data="create")],
             [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -76,13 +76,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 3️⃣ زر تحديد العدد (هنا نلتقط الشخص الذي أنشأ الروليت وصنع الجولة فعلياً)
+    # 3️⃣ زر تحديد العدد وإنشاء الجولة بالذاكرة
     if data.startswith("s_"):
         await query.answer()
         target = int(data.split("_")[1])
         
         session_id = str(random.randint(100000, 999999))
-        # حفظ معرف المستخدم الحالي (الذي يضغط على الأرقام ويصنع الروليت) كمنشئ رئيسي للجولة
+        # حفظ المستخدم الذي ضغط على الرقم كـ منشئ للروليت
         game_sessions[session_id] = {"target": target, "players": [], "creator": user.id}
         
         keyboard = [
@@ -91,12 +91,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(
-            text=f"تم تجهيز الروليت بنجاح 💎\n👥 عدد المشتركين: {target}\n\nاضغطي على الزر بالأسفل لنشره مباشرة في قناتك أو مجموعتك 👇",
+            text=f"تم تجهيز الروليت بنجاح 💎\n👥 عدد المشتركين المطلوب: {target}\n\nاضغطي على الزر بالأسفل لنشره مباشرة في قناتك أو مجموعتك 👇",
             reply_markup=reply_markup
         )
         return
 
-    # 4️⃣ زر تدوير العجلة اليدوي (يتحقق بدقة من منشئ الروليت الحالي)
+    # 4️⃣ زر تدوير العجلة اليدوي لمنشئ الروليت
     if data.startswith("spin_"):
         parts = data.split("_")
         target = int(parts[1])
@@ -108,7 +108,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
         session = game_sessions[session_id]
         
-        # التحقق: هل الشخص الذي يضغط على "تدوير" هو نفسه منشئ هذا الروليت؟
         if user.id != session["creator"]:
             await query.answer("عذراً، الشخص الذي أنشأ هذا الروليت فقط هو من يمكنه تدوير العجلة! ⚠️", show_alert=True)
             return
@@ -124,16 +123,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         final_text = (
             f"🎯 روليت عادي 🎯\n\n"
-            f"👥 المشاركين: {len(players_list)} مشارك\n"
+            f"👥 المشاركين النهائيين: {len(players_list)} مشارك\n"
             f"🎉 الروليت دار واختار...\n"
-            f"🎯 الفائز هو: 🕯️ {winner['name']} 🕯️\n\n"
+            f"🎯 الفائز هو: 🕯️ {winner[ name ]} 🕯️\n\n"
             f"مبروك للفائز وحظاً أوفر للبقية!"
         )
         await query.edit_message_text(text=final_text)
         game_sessions.pop(session_id, None)
         return
 
-    # 5️⃣ معالجة ضغط زر الاشتراك "مشاركة"
+    # 5️⃣ زر الاشتراك وتحديث القائمة فوراً لإظهار المشتركين
     if data.startswith("j_"):
         parts = data.split("_")
         target = int(parts[1])
@@ -155,15 +154,16 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("أنت مسجل بالفعل في هذه الجولة! ⚠️", show_alert=True)
             return
 
-        # إضافة المشترك الجديد بنجاح
+        # إضافة المشترك وتطهير الاسم من الأقواس البرمجية
         clean_name = user.first_name.replace("[", "").replace("]", "")
         players_list.append({"id": user.id, "name": clean_name})
         current_len = len(players_list)
         
         await query.answer("تم تسجيلك بنجاح! ✅")
+        
+        # توليد النص الجديد الذي يحتوي على قائمة المشتركين الفورية
         new_text = generate_game_text(players_list, target)
         
-        # الأزرار في القناة تشمل زر "تدوير العجلة"
         keyboard = [
             [InlineKeyboardButton(f"مشاركة ({current_len}) 📥", callback_data=f"j_{target}_{session_id}")],
             [InlineKeyboardButton("🎡 تدوير العجلة 🎡", callback_data=f"spin_{target}_{session_id}")],
@@ -172,7 +172,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text(text=new_text, reply_markup=reply_markup)
 
-# نظام الـ Inline المستقر والمبني على المعرف الثابت
+# 6️⃣ نظام الـ Inline المستقر لمنع مشاكل الـ الكاش ولإظهار المشتركين الفعليين
 async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
     
@@ -188,27 +188,32 @@ async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             except:
                 pass
 
-    # إذا لم تكن الجولة منشأة مسبقاً بالذاكرة (حالة نادرة جداً)، ننشئها ونحفظ من فتحها كمنشئ احتياطي
-    if session_id not in game_sessions:
+    # التأكد من جلب البيانات الفعلية من الذاكرة إن وجدت لمنع تصفير النص عند النشر للمرة الأولى
+    if session_id in game_sessions:
+        session = game_sessions[session_id]
+        players_list = session["players"]
+        target = session["target"]
+    else:
+        # إذا ضغط العضو بشكل مباشر دون توليد مسبق
         game_sessions[session_id] = {"target": target, "players": [], "creator": update.effective_user.id}
+        players_list = []
+
+    current_len = len(players_list)
+    inline_text = generate_game_text(players_list, target)
 
     results = [
         InlineQueryResultArticle(
             id=session_id,
             title=f"اضغط هنا لنشر الروليت المحدد ({target} مشارك)",
-            input_message_content=InputTextMessageContent(
-                f"🎯 روليت عادي 🎯\n\n"
-                f"👥 المشاركين: 0 من أصل {target} مشارك\n"
-                f"🏆 لم يتم اختيار الفائز بعد"
-            ),
+            input_message_content=InputTextMessageContent(inline_text),
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("مشاركة (0) 📥", callback_data=f"j_{target}_{session_id}")],
+                [InlineKeyboardButton(f"مشاركة ({current_len}) 📥", callback_data=f"j_{target}_{session_id}")],
                 [InlineKeyboardButton("🎡 تدوير العجلة 🎡", callback_data=f"spin_{target}_{session_id}")],
                 [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray")]
             ])
         )
     ]
-    await update.inline_query.answer(results, cache_time=0)
+    await update.inline_query.answer(results, cache_time=0) # cache_time=0 يمنع التليجرام من حفظ البيانات القديمة
 
 
 app = Application.builder().token(TOKEN).build()
@@ -218,3 +223,4 @@ app.add_handler(CallbackQueryHandler(button_handler, pattern="^(j_.*|pray|s_.*|c
 app.add_handler(InlineQueryHandler(inline_query_handler))
 
 app.run_polling()
+
