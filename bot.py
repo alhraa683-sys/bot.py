@@ -8,7 +8,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Inli
 # ==================== (جزء السيرفر الوهمي الخاص بموقع Render) ====================
 app_flask = Flask(  )
 
-@app_flask.route( / )
+@app_flask.route(' / ' )
 def home():
     return "Bot is running perfectly!"
 
