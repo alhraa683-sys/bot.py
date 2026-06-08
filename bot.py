@@ -279,5 +279,7 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(button_handler, pattern="^(j_.*|pray|s_.*|create|back|spin_.*)$"))
 app.add_handler(InlineQueryHandler(inline_query_handler))
 
-app.run_polling()
+app.rapp.run_polling(drop_pending_updates=True)
+
+
 
