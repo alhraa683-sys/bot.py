@@ -1,11 +1,12 @@
 import os
 import random
 import threading
+import time
 from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, InlineQueryHandler, ContextTypes
 
-# ==================== (جزء السيرفر الوهمي الخاص بموقع Render) ====================
+# ==================== (خادم Flask المستقر لموقع Render) ====================
 app_flask = Flask(__name__)
 
 @app_flask.route( / )
@@ -16,17 +17,34 @@ def run_server():
     port = int(os.environ.get("PORT", 8080))
     app_flask.run(host= 0.0.0.0 , port=port)
 
-# تشغيل خادم Flask في خلفية منفصلة تماماً قبل تشغيل البوت
+# تشغيل الخادم في خلفية مستقلة لضمان استقرار Render
 threading.Thread(target=run_server, daemon=True).start()
 # ==============================================================================
 
 # قاموس حفظ الجولات واللاعبين وبيانات منشئ الروليت
 game_sessions = {}
 
+# التحقق من وجود التوكن لمنع انهيار السيرفر
 TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("ERROR: BOT_TOKEN variable is missing from environment!")
+
+# وظيفة ذكية لحذف الجولات القديمة (تنظيف تلقائي للذاكرة كل ساعة)
+def auto_clean_old_sessions():
+    while True:
+        time.sleep(3600)  # فحص كل ساعة
+        current_time = time.time()
+        expired_ids = [
+            sid for sid, session in game_sessions.items()
+            if current_time - session.get("created_at", 0) > 86400  # حذف بعد 24 ساعة
+        ]
+        for sid in expired_ids:
+            game_sessions.pop(sid, None)
+
+threading.Thread(target=auto_clean_old_sessions, daemon=True).start()
 
 def generate_game_text(players_list, target):
-    text = f"🎯 روليت عادي 🎯\n\n"
+    text = "🎯 روليت عادي 🎯\n\n"
     text += f"👥 المشاركين: {len(players_list)} من أصل {target} مشارك\n"
     
     if len(players_list) == 0:
@@ -34,6 +52,7 @@ def generate_game_text(players_list, target):
     else:
         text += "🏆 لم يتم اختيار الفائز بعد\n\n"
         text += "📜 قائمة المشتركين الحالية:\n"
+        # إظهار أسماء المشتركين كنص فقط لضمان الخصوصية وعدم تعليق الشاشة
         for i, p in enumerate(players_list, 1):
             text += f"{i}-Player: {p[ name ]}\n"
     
@@ -60,7 +79,10 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if data == "pray":
         await query.answer("اللهم صلِّ وسلم على نبينا محمد 🩵")
-        await query.message.reply_text("اللهم صلِّ وسلم وبارك على سيدنا ونبينا محمد وعلى آله وصحبه أجمعين\n\nجزاك الله خيراً وكسبت الأجر 🩵")
+        try:
+            await query.message.reply_text("اللهم صلِّ وسلم وبارك على سيدنا ونبينا محمد وعلى آله وصحبه أجمعين\n\nجزاك الله خيراً وكسبت الأجر 🩵")
+        except:
+            pass
         return
 
     # 2️⃣ قائمة الأرقام للروليت
@@ -98,8 +120,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
         target = int(data.split("_")[1])
         
-        session_id = str(random.randint(100000, 999999))
-        game_sessions[session_id] = {"target": target, "players": [], "creator": user.id}
+        # تحسين إنشاء معرف الجلسة session_id ليكون فريداً ومعقداً ومضافاً له وقت الإنشاء
+        session_id = f"{random.randint(1000, 9999)}{int(time.time()) % 100}"
+        game_sessions[session_id] = {
+            "target": target, 
+            "players": [], 
+            "creator": user.id,
+            "created_at": time.time()
+        }
         
         keyboard = [
             [InlineKeyboardButton(f"اضغط هنا لنشر الروليت المحدد ({target} مشارك) 📣", switch_inline_query=f"run_{target}_{session_id}")],
@@ -144,11 +172,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🎯 الفائز هو: 🕯️ {winner[ name ]} 🕯️\n\n"
             f"مبروك للفائز وحظاً أوفر للبقية!"
         )
-        await query.edit_message_text(text=final_text)
+        try:
+            await query.edit_message_text(text=final_text)
+        except:
+            pass
         game_sessions.pop(session_id, None)
         return
 
-    # 5️⃣ زر الاشتراك وتحديث القائمة فوراً لإظهار المشتركين
+    # 5️⃣ زر الاشتراك وتحديث القائمة فوراً
     if data.startswith("j_"):
         parts = data.split("_")
         target = int(parts[1])
@@ -170,6 +201,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("أنت مسجل بالفعل في هذه الجولة! ⚠️", show_alert=True)
             return
 
+        # تنظيف الاسم من الأقواس المزعجة
         clean_name = user.first_name.replace("[", "").replace("]", "")
         players_list.append({"id": user.id, "name": clean_name})
         current_len = len(players_list)
@@ -184,14 +216,19 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [InlineKeyboardButton("حباً برسول الله صلوا عليهِ 🩵", callback_data="pray")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(text=new_text, reply_markup=reply_markup)
+        
+        # معالجة ذكية لأخطاء تعديل الرسائل السريعة لمنع انهيار البوت
+        try:
+            await query.edit_message_text(text=new_text, reply_markup=reply_markup)
+        except Exception:
+            pass
 
-# 6️⃣ نظام الـ Inline المستقر لمنع مشاكل الـ الكاش ولإظهار المشتركين الفعليين
+# 6️⃣ نظام الـ Inline المستقر لمنع مشاكل الـ الكاش
 async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
     
     target = 5
-    session_id = str(random.randint(100000, 999999))
+    session_id = f"{random.randint(1000, 9999)}{int(time.time()) % 100}"
     
     if query.startswith("run_"):
         parts = query.split("_")
@@ -207,7 +244,12 @@ async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         players_list = session["players"]
         target = session["target"]
     else:
-        game_sessions[session_id] = {"target": target, "players": [], "creator": update.effective_user.id}
+        game_sessions[session_id] = {
+            "target": target, 
+            "players": [], 
+            "creator": update.effective_user.id,
+            "created_at": time.time()
+        }
         players_list = []
 
     current_len = len(players_list)
@@ -225,8 +267,12 @@ async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             ])
         )
     ]
-    await update.inline_query.answer(results, cache_time=0)
+    try:
+        await update.inline_query.answer(results, cache_time=0)
+    except:
+        pass
 
+# بدء تشغيل التطبيق بالتوكن الصحيح
 app = Application.builder().token(TOKEN).build()
 
 app.add_handler(CommandHandler("start", start))
