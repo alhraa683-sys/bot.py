@@ -5,20 +5,18 @@ from flask import Flask, request
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, InlineQueryHandler
 
-# جلب التوكن وإعدادات السيرفر
+# جلب التوكن ورابط السيرفر التلقائي من Render
 TOKEN = os.getenv("BOT_TOKEN")
-RENDER_URL = os.getenv("RENDER_EXTERNAL_URL") # هذا متغير يوفره ريندر تلقائياً لرابط موقعك
+RENDER_URL = os.getenv("RENDER_EXTERNAL_URL") 
 
 if not TOKEN:
     raise ValueError("ERROR: BOT_TOKEN is missing!")
 
-# إنشاء تطبيق التليجرام
+# بناء تطبيق التليجرام بنظام الأسنك (Async) الحديث
 telegram_app = Application.builder().token(TOKEN).build()
-
-# إنشاء سيرفر Flask
 app_flask = Flask(__name__)
 
-# قاموس حفظ الجولات
+# قاموس حفظ جولات الروليت
 game_sessions = {}
 
 def generate_game_text(players_list, target):
@@ -31,7 +29,7 @@ def generate_game_text(players_list, target):
             text += f"{i}-Player: {p[ name ]}\n"
     return text
 
-# ---Handlers---
+# --- الأوامر والـ Handlers ---
 async def start(update: Update, context):
     user = update.effective_user
     keyboard = [
@@ -157,37 +155,35 @@ async def inline_query_handler(update: Update, context):
     try: await update.inline_query.answer(results, cache_time=0)
     except: pass
 
-# ربط الـ Handlers بالتطبيق
+# ربط كل الـ Handlers بالتطبيق الرسمي لـ التليجرام
 telegram_app.add_handler(CommandHandler("start", start))
 telegram_app.add_handler(CallbackQueryHandler(button_handler, pattern="^(j_.*|pray|s_.*|create|back|spin_.*)$"))
 telegram_app.add_handler(InlineQueryHandler(inline_query_handler))
 
-# مسارات سيرفر Flask
+# مسارات خادم ويب الـ Flask للرد على موقع Render والتليجرام معاً
 @app_flask.route( / )
 def index():
     return "Bot Webhook Server is Live!"
 
 @app_flask.route(f /{TOKEN} , methods=[ POST ])
 def webhook():
-    # استقبال الرسائل القادمة من التليجرام وتمريرها للمكتبة لتعالجها بشكل منفصل وأنيق
     if request.method == "POST":
+        # استقبال التحديثات من التليجرام وتمريرها فوراً ومباشرة للمعالجة داخل البوت
         update = Update.de_json(request.get_json(force=True), telegram_app.bot)
         asyncio.run(telegram_app.process_update(update))
     return "OK", 200
 
-# تشغيل البوت وربطه بالـ Webhook عند بدء السيرفر
 async def setup_webhook():
     await telegram_app.initialize()
     if RENDER_URL:
         url = f"{RENDER_URL.rstrip( / )}/{TOKEN}"
         await telegram_app.bot.set_webhook(url=url)
-        print(f"Webhook set to: {url}")
+        print(f"Webhook connection established successfully at: {url}")
 
-# تنفيذ الـ Setup قبل بدء تشغيل Flask
 try:
     asyncio.run(setup_webhook())
 except Exception as e:
-    print(f"Webhook setup failed: {e}")
+    print(f"Webhook initialization error: {e}")
 
 if __name__ ==  __main__ :
     port = int(os.environ.get("PORT", 8080))
