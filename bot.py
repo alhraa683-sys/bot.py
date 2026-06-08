@@ -17,6 +17,10 @@ def run_server():
     port = int(os.environ.get("PORT", 8080))
     app_flask.run(host= 0.0.0.0 , port=port)
 
+
+
+
+
 # تشغيل خادم Flask في خلفية منفصلة تماماً قبل تشغيل البوت
 threading.Thread(target=run_server, daemon=True).start()
 # ==============================================================================
