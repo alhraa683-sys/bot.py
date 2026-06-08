@@ -9,7 +9,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Inli
 # ==================== (خادم Flask المستقر لموقع Render) ====================
 app_flask = Flask(__name__)
 
-@app_flask.route(' / ')
+@app_flask.route('/')
 def home():
     return "Bot is running perfectly!"
 
