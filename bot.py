@@ -3,7 +3,7 @@ import random
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, InlineQueryHandler, ContextTypes
 
-# قاموس لحفظ جولات اللعب بشكل دقيق
+# قاموس حفظ الجولات واللاعبين
 game_sessions = {}
 
 TOKEN = os.getenv("BOT_TOKEN")
@@ -24,7 +24,7 @@ def generate_game_text(players_list, target):
     
     return text
 
-# 1️⃣ زر إنشاء المسابقة الرئيسي
+# 1️⃣ القائمة الرئيسية لبدء المسابقة
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     keyboard = [
@@ -48,7 +48,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("اللهم صلِّ وسلم وبارك على سيدنا ونبينا محمد وعلى آله وصحبه أجمعين\n\nجزاك الله خيراً وكسبت الأجر 🩵")
         return
 
-    # 2️⃣ قائمة اختيار الأرقام
+    # 2️⃣ قائمة الأرقام للروليت
     if data == "create":
         await query.answer()
         keyboard = [
@@ -78,12 +78,17 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 3️⃣ زر النشر المباشر
+    # 3️⃣ زر النشر (توليد المعرف الثابت هنا لمنع تصفير العداد)
     if data.startswith("s_"):
         await query.answer()
         target = int(data.split("_")[1])
+        
+        # إنشاء المعرف الثابت للجولة هنا وحفظه بالذاكرة فوراً
+        session_id = str(random.randint(100000, 999999))
+        game_sessions[session_id] = []
+        
         keyboard = [
-            [InlineKeyboardButton(f"اضغط هنا لنشر الروليت المحدد ({target} مشارك) 📣", switch_inline_query=f"run_{target}")],
+            [InlineKeyboardButton(f"اضغط هنا لنشر الروليت المحدد ({target} مشارك) 📣", switch_inline_query=f"run_{target}_{session_id}")],
             [InlineKeyboardButton("تعديل العدد ⚙️", callback_data="create")]
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
@@ -93,35 +98,31 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 4️⃣ معالجة اشتراك الأعضاء داخل القنوات والمجموعات وتحديث العداد فوراً
+    # 4️⃣ معالجة ضغط زر الاشتراك "مشاركة"
     if data.startswith("j_"):
         parts = data.split("_")
         target = int(parts[1])
         session_id = parts[2]
         
-        # التأكد من تهيئة الجولة إذا لم تكن موجودة في الذاكرة
         if session_id not in game_sessions:
             game_sessions[session_id] = []
             
         players_list = game_sessions[session_id]
 
-        # إذا اكتمل العدد مسبقاً
         if len(players_list) >= target:
             await query.answer("عذراً، اكتمل عدد المشتركين لهذه الجولة! ⚠️", show_alert=True)
             return
 
-        # التحقق إذا كان المستخدم مسجلاً مسبقاً
         user_ids = [p["id"] for p in players_list]
         if user.id in user_ids:
             await query.answer("أنت مسجل بالفعل في هذه الجولة! ⚠️", show_alert=True)
             return
 
-        # إضافة المشترك الجديد وتحديث القائمة
+        # إضافة المشترك الجديد وتحديث القائمة بنجاح
         clean_name = user.first_name.replace("[", "").replace("]", "")
         players_list.append({"id": user.id, "name": clean_name})
         current_len = len(players_list)
         
-        # إذا اكتمل العدد بعد انضمام هذا اللاعب الحالي
         if current_len == target:
             await query.answer("اكتمل العدد! جاري اختيار الفائز...", show_alert=True)
             winner = random.choice(players_list)
@@ -133,11 +134,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"🎯 الفائز هو: 🕯️ {winner[ name ]} 🕯️\n\n"
                 f"مبروك للفائز وحظاً أوفر للبقية!"
             )
-            # نقوم بإرسال النص النهائي بدون أزرار انتهاء اللعبة
             await query.edit_message_text(text=final_text)
             game_sessions.pop(session_id, None)
         else:
-            # تحديث النص والعداد فوراً في نفس اللحظة للأعضاء
             await query.answer("تم تسجيلك بنجاح! ✅")
             new_text = generate_game_text(players_list, target)
             keyboard = [
@@ -147,21 +146,29 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup = InlineKeyboardMarkup(keyboard)
             await query.edit_message_text(text=new_text, reply_markup=reply_markup)
 
-# نظام تحضير الـ Inline بالقناة
+# نظام الـ Inline المستقر والمبني على المعرف الثابت
 async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
     
-    if query.startswith("run_"):
-        try:
-            target = int(query.split("_")[1])
-        except:
-            target = 5
-    else:
-        target = 5
-
-    # توليد معرف فريد عشوائي لكل جولة يتم نشرها لمنع التداخل بين القنوات
+    target = 5
     session_id = str(random.randint(100000, 999999))
-    game_sessions[session_id] = []
+    
+    if query.startswith("run_"):
+        parts = query.split("_")
+        if len(parts) >= 3:
+            try:
+                target = int(parts[1])
+                session_id = parts[2]  # استقبال الـ session_id الثابت من رابط النشر
+            except:
+                pass
+        elif len(parts) == 2:
+            try:
+                target = int(parts[1])
+            except:
+                pass
+
+    if session_id not in game_sessions:
+        game_sessions[session_id] = []
 
     results = [
         InlineQueryResultArticle(
@@ -178,7 +185,6 @@ async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             ])
         )
     ]
-    # وضع cache_time=0 لإجبار تليجرام على تحديث البيانات وعدم حفظ الأزرار القديمة
     await update.inline_query.answer(results, cache_time=0)
 
 
@@ -190,3 +196,4 @@ app.add_handler(InlineQueryHandler(inline_query_handler))
 
 app.run_polling()
 
+                                   
