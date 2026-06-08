@@ -2,24 +2,8 @@ import os
 import random
 import threading
 import time
-from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, InlineQueryHandler, ContextTypes
-
-# ==================== (خادم Flask المستقر لموقع Render) ====================
-app_flask = Flask(__name__)
-
-@app_flask.route('/')
-def home():
-    return "Bot is running perfectly!"
-
-def run_server():
-    port = int(os.environ.get("PORT", 8080))
-    app_flask.run(host= "0.0.0.0" , port=port)
-
-# تشغيل الخادم في خلفية مستقلة لضمان استقرار Render
-threading.Thread(target=run_server, daemon=True).start()
-# ==============================================================================
 
 # قاموس حفظ الجولات واللاعبين وبيانات منشئ الروليت
 game_sessions = {}
@@ -52,7 +36,6 @@ def generate_game_text(players_list, target):
     else:
         text += "🏆 لم يتم اختيار الفائز بعد\n\n"
         text += "📜 قائمة المشتركين الحالية:\n"
-        # إظهار أسماء المشتركين كنص فقط لضمان الخصوصية وعدم تعليق الشاشة
         for i, p in enumerate(players_list, 1):
             text += f"{i}-Player: {p[ name ]}\n"
     
@@ -120,7 +103,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.answer()
         target = int(data.split("_")[1])
         
-        # تحسين إنشاء معرف الجلسة session_id ليكون فريداً ومعقداً ومضافاً له وقت الإنشاء
         session_id = f"{random.randint(1000, 9999)}{int(time.time()) % 100}"
         game_sessions[session_id] = {
             "target": target, 
@@ -201,7 +183,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("أنت مسجل بالفعل في هذه الجولة! ⚠️", show_alert=True)
             return
 
-        # تنظيف الاسم من الأقواس المزعجة
         clean_name = user.first_name.replace("[", "").replace("]", "")
         players_list.append({"id": user.id, "name": clean_name})
         current_len = len(players_list)
@@ -217,13 +198,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
         reply_markup = InlineKeyboardMarkup(keyboard)
         
-        # معالجة ذكية لأخطاء تعديل الرسائل السريعة لمنع انهيار البوت
         try:
             await query.edit_message_text(text=new_text, reply_markup=reply_markup)
         except Exception:
             pass
 
-# 6️⃣ نظام الـ Inline المستقر لمنع مشاكل الـ الكاش
+# 6️⃣ نظام الـ Inline المستقر لمنع مشاكل الكاش
 async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.inline_query.query
     
@@ -279,9 +259,5 @@ app.add_handler(CommandHandler("start", start))
 app.add_handler(CallbackQueryHandler(button_handler, pattern="^(j_.*|pray|s_.*|create|back|spin_.*)$"))
 app.add_handler(InlineQueryHandler(inline_query_handler))
 
-app.run_polling(drop_pending_updates=True)
-
-
-
-
+app.run_polling()
 
