@@ -15,7 +15,7 @@ def home():
 
 def run_server():
     port = int(os.environ.get("PORT", 8080))
-    app_flask.run(host= 0.0.0.0 , port=port)
+    app_flask.run(host= "0.0.0.0" , port=port)
 
 # تشغيل الخادم في خلفية مستقلة لضمان استقرار Render
 threading.Thread(target=run_server, daemon=True).start()
