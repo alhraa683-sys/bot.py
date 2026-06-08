@@ -1,7 +1,25 @@
 import os
 import random
+import threading
+from flask import Flask
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQueryResultArticle, InputTextMessageContent
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, InlineQueryHandler, ContextTypes
+
+# ==================== (جزء السيرفر الوهمي الخاص بموقع Render) ====================
+app_flask = Flask(  )
+
+@app_flask.route( / )
+def home():
+    return "Bot is running perfectly!"
+
+def run_server():
+    # Render يمرر المنفذ تلقائياً عبر متغير البيئة PORT
+    port = int(os.environ.get("PORT", 8080))
+    app_flask.run(host= 0.0.0.0 , port=port)
+
+# تشغيل خادم Flask في خلفية منفصلة تماماً قبل تشغيل البوت
+threading.Thread(target=run_server, daemon=True).start()
+# ==============================================================================
 
 # قاموس حفظ الجولات واللاعبين وبيانات منشئ الروليت
 game_sessions = {}
@@ -18,11 +36,11 @@ def generate_game_text(players_list, target):
         text += "🏆 لم يتم اختيار الفائز بعد\n\n"
         text += "📜 قائمة المشتركين الحالية:\n"
         for i, p in enumerate(players_list, 1):
-            text += f"{i}-Player: {p[ name ]}\n"
+            text += f"{i}-Player: {p[ name ]}\n"  # تم إصلاح القوس هنا
     
     return text
 
-# 1️⃣ القائمة الرئيسية لبدء الروليت (تم تعديل المسمى هنا)
+# 1️⃣ القائمة الرئيسية لبدء الروليت
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     keyboard = [
@@ -82,7 +100,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target = int(data.split("_")[1])
         
         session_id = str(random.randint(100000, 999999))
-        # حفظ المستخدم الذي ضغط على الرقم كـ منشئ للروليت
         game_sessions[session_id] = {"target": target, "players": [], "creator": user.id}
         
         keyboard = [
@@ -125,7 +142,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🎯 روليت عادي 🎯\n\n"
             f"👥 المشاركين النهائيين: {len(players_list)} مشارك\n"
             f"🎉 الروليت دار واختار...\n"
-            f"🎯 الفائز هو: 🕯️ {winner[ name ]} 🕯️\n\n"
+            f"🎯 الفائز هو: 🕯️ {winner[ name ]} 🕯️\n\n"  # تم إصلاح القوس هنا
             f"مبروك للفائز وحظاً أوفر للبقية!"
         )
         await query.edit_message_text(text=final_text)
@@ -154,14 +171,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await query.answer("أنت مسجل بالفعل في هذه الجولة! ⚠️", show_alert=True)
             return
 
-        # إضافة المشترك وتطهير الاسم من الأقواس البرمجية
         clean_name = user.first_name.replace("[", "").replace("]", "")
         players_list.append({"id": user.id, "name": clean_name})
         current_len = len(players_list)
         
         await query.answer("تم تسجيلك بنجاح! ✅")
         
-        # توليد النص الجديد الذي يحتوي على قائمة المشتركين الفورية
         new_text = generate_game_text(players_list, target)
         
         keyboard = [
@@ -188,13 +203,11 @@ async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             except:
                 pass
 
-    # التأكد من جلب البيانات الفعلية من الذاكرة إن وجدت لمنع تصفير النص عند النشر للمرة الأولى
     if session_id in game_sessions:
         session = game_sessions[session_id]
         players_list = session["players"]
         target = session["target"]
     else:
-        # إذا ضغط العضو بشكل مباشر دون توليد مسبق
         game_sessions[session_id] = {"target": target, "players": [], "creator": update.effective_user.id}
         players_list = []
 
@@ -213,7 +226,7 @@ async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             ])
         )
     ]
-    await update.inline_query.answer(results, cache_time=0) # cache_time=0 يمنع التليجرام من حفظ البيانات القديمة
+    await update.inline_query.answer(results, cache_time=0)
 
 
 app = Application.builder().token(TOKEN).build()
