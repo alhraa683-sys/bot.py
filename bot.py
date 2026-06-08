@@ -6,22 +6,16 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InlineQ
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, InlineQueryHandler, ContextTypes
 
 # ==================== (جزء السيرفر الوهمي الخاص بموقع Render) ====================
-app_flask = Flask(  )
+app_flask = Flask(__name__)
 
-@app_flask.route(' / ' )
+@app_flask.route( / )
 def home():
     return "Bot is running perfectly!"
 
 def run_server():
     # Render يمرر المنفذ تلقائياً عبر متغير البيئة PORT
     port = int(os.environ.get("PORT", 8080))
-    app_flask.run(host=' 0.0.0.0 ', port=port)
-
-
-
-
-
-
+    app_flask.run(host= 0.0.0.0 , port=port)
 
 # تشغيل خادم Flask في خلفية منفصلة تماماً قبل تشغيل البوت
 threading.Thread(target=run_server, daemon=True).start()
@@ -42,7 +36,7 @@ def generate_game_text(players_list, target):
         text += "🏆 لم يتم اختيار الفائز بعد\n\n"
         text += "📜 قائمة المشتركين الحالية:\n"
         for i, p in enumerate(players_list, 1):
-            text += f"{i}-Player: {p[ name ]}\n"  # تم إصلاح القوس هنا
+            text += f"{i}-Player: {p[ name ]}\n"
     
     return text
 
@@ -148,7 +142,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🎯 روليت عادي 🎯\n\n"
             f"👥 المشاركين النهائيين: {len(players_list)} مشارك\n"
             f"🎉 الروليت دار واختار...\n"
-            f"🎯 الفائز هو: 🕯️ {winner[ name ]} 🕯️\n\n"  # تم إصلاح القوس هنا
+            f"🎯 الفائز هو: 🕯️ {winner[ name ]} 🕯️\n\n"
             f"مبروك للفائز وحظاً أوفر للبقية!"
         )
         await query.edit_message_text(text=final_text)
@@ -233,7 +227,6 @@ async def inline_query_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         )
     ]
     await update.inline_query.answer(results, cache_time=0)
-
 
 app = Application.builder().token(TOKEN).build()
 
