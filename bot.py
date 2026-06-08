@@ -9,13 +9,13 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Inli
 # ==================== (خادم Flask المستقر لموقع Render) ====================
 app_flask = Flask(__name__)
 
-@app_flask.route( / )
+@app_flask.route( '/' )
 def home():
     return "Bot is running perfectly!"
 
 def run_server():
     port = int(os.environ.get("PORT", 8080))
-    app_flask.run(host= 0.0.0.0 , port=port)
+    app_flask.run(host= '0.0.0.0' , port=port)
 
 # تشغيل الخادم في خلفية مستقلة لضمان استقرار Render
 threading.Thread(target=run_server, daemon=True).start()
